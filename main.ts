@@ -4,13 +4,49 @@ namespace SpriteKind {
 function IsGameStarted () {
     return Go == 1
 }
+function Autoplay (mySprite: Sprite) {
+    if (!(mp.isConnected(mp.getPlayerBySprite(mySprite)))) {
+        game.onUpdateInterval(500, function() {
+        ran = randint(1,3)
+        if (ran == 2){
+            mySprite.vy = 100
+        }
+        else{
+            if(ran == 1){
+                mySprite.vy = -100
+            }
+            else {
+                mySprite.vy = 0
+            }
+        }
+        Fire(mySprite)    
+        })
+    }
+}
 function Start () {
     Go = 1
 }
 mp.onButtonEvent(mp.MultiplayerButton.A, ControllerButtonEvent.Pressed, function (player2) {
+    if (!(IsGameStarted())) {
+        List = sprites.allOfKind(SpriteKind.Player)
+        for (let index = 0; index < 4; index++) {
+            Autoplay(List.shift())
+        }
+    }
     Start()
     mp.moveWithButtons(player2, 0, 100)
-    if (mp.getPlayerState(player2, MultiplayerState.life) > 0) {
+    Fire(mp.getPlayerSprite(player2))
+})
+sprites.onOverlap(SpriteKind.Player, SpriteKind.Laser, function (sprite, otherSprite) {
+    sprites.destroy(otherSprite)
+    mp.changePlayerStateBy(mp.getPlayerBySprite(sprite), MultiplayerState.life, -1)
+})
+sprites.onOverlap(SpriteKind.Projectile, SpriteKind.Laser, function (sprite, otherSprite) {
+    sprites.destroy(sprite)
+    sprites.destroy(otherSprite)
+})
+function Fire (mySprite: Sprite) {
+    if (mp.getPlayerState(mp.getPlayerBySprite(mySprite), MultiplayerState.life) > 0) {
         projectile = sprites.createProjectileFromSprite(img`
             . . . . . . . . . . . . . . . . 
             . . . . . . . . . . . . . . . . 
@@ -28,18 +64,10 @@ mp.onButtonEvent(mp.MultiplayerButton.A, ControllerButtonEvent.Pressed, function
             . . . . . . . . . . . . . . . . 
             . . . . . . . . . . . . . . . . 
             . . . . . . . . . . . . . . . . 
-            `, mp.getPlayerSprite(player2), 100, 0)
+            `, mySprite, 100, 0)
         music.play(music.melodyPlayable(music.pewPew), music.PlaybackMode.InBackground)
     }
-})
-sprites.onOverlap(SpriteKind.Player, SpriteKind.Laser, function (sprite, otherSprite) {
-    sprites.destroy(otherSprite)
-    mp.changePlayerStateBy(mp.getPlayerBySprite(sprite), MultiplayerState.life, -1)
-})
-sprites.onOverlap(SpriteKind.Projectile, SpriteKind.Laser, function (sprite, otherSprite) {
-    sprites.destroy(sprite)
-    sprites.destroy(otherSprite)
-})
+}
 mp.onLifeZero(function (player2) {
     sprites.destroy(mp.getPlayerSprite(player2), effects.disintegrate, 500)
 })
@@ -55,7 +83,9 @@ let projectile3: Sprite = null
 let projectile2: Sprite = null
 let projectile: Sprite = null
 let PlayerSprite: Sprite = null
+let List: Sprite[] = []
 let Go = 0
+let ran = 0
 let Num = -15
 Go = 0
 mp.setPlayerIndicatorsVisible(false)
@@ -131,7 +161,7 @@ mp.setPlayerSprite(mp.playerSelector(mp.PlayerNumber.Four), sprites.create(img`
     6 6 6 . . . . . . . . . . . . . 
     6 6 . . . . . . . . . . . . . . 
     `, SpriteKind.Player))
-let List = sprites.allOfKind(SpriteKind.Player)
+List = sprites.allOfKind(SpriteKind.Player)
 for (let index = 0; index < 4; index++) {
     PlayerSprite = List.shift()
     Num += 30
@@ -140,6 +170,7 @@ for (let index = 0; index < 4; index++) {
     mp.setPlayerState(mp.getPlayerBySprite(PlayerSprite), MultiplayerState.score, 0)
     mp.setPlayerState(mp.getPlayerBySprite(PlayerSprite), MultiplayerState.life, 3)
 }
+mp.setPlayerIndicatorsVisible(false)
 game.onUpdateInterval(700, function () {
     if (IsGameStarted()) {
         projectile2 = sprites.createProjectileFromSide(img`
@@ -190,5 +221,6 @@ game.onUpdateInterval(500, function () {
             . . . . . . . . . . . . . . . . 
             `, sprites.allOfKind(SpriteKind.Enemy)._pickRandom(), -120, 0)
         projectile3.setKind(SpriteKind.Laser)
+        music.play(music.melodyPlayable(music.zapped), music.PlaybackMode.InBackground)
     }
 })
